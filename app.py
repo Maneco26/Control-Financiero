@@ -1,14 +1,29 @@
 import streamlit as st
-from ui.tarjetas_ui import mostrar_tarjetas
-from ui.pagos_ui import mostrar_pagos
+from pages.pagos import crear_pago
+# Puedes importar otros módulos cuando estén listos:
+# from pages.tarjetas import gestionar_tarjetas
+# from pages.servicios import gestionar_servicios
 
-st.set_page_config(page_title="Control Financiero", layout="wide")
-st.title("📊 Control Financiero")
+st.set_page_config(page_title="App Financiera", layout="wide")
 
-tabs = st.tabs(["Tarjetas", "Pagos"])
+st.title("📊 Creador de App Financiera")
+
+tabs = st.tabs([
+    "Pagos",
+    "Tarjetas",
+    "Servicios",
+    "Ingresos",
+    "Gastos",
+    "Calendario",
+    "Dashboard"
+])
 
 with tabs[0]:
-    mostrar_tarjetas()
+    crear_pago()
 
-with tabs[1]:
-    mostrar_pagos()
+# Puedes ir activando los demás módulos así:
+# with tabs[1]:
+#     gestionar_tarjetas()
+
+# with tabs[2]:
+#     gestionar_servicios()
