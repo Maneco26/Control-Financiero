@@ -1,92 +1,82 @@
 import streamlit as st
-import sqlite3
-from datetime import date
+import pandas as pd
 
-DB_PATH = "data/finanzas.db"
+# Simulación de base de datos en sesión
+if "tarjetas_db" not in st.session_state:
+    st.session_state.tarjetas_db = pd.DataFrame(columns=[
+        "ID", "Nombre", "Emisor", "Tipo", "Límite", "Saldo", "Divisa", 
+        "Saldo_Córdobas", "Fecha Corte", "Fecha Pago", "Notas"
+    ])
+if "edit_index" not in st.session_state:
+    st.session_state.edit_index = None
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tarjetas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            emisor TEXT,
-            tipo TEXT CHECK(tipo IN ('Crédito', 'Débito')) NOT NULL,
-            limite REAL,
-            saldo_actual REAL,
-            fecha_corte TEXT,
-            fecha_pago_limite TEXT,
-            notas TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Tipo de cambio
+TIPO_CAMBIO = 36.62
 
-def agregar_tarjeta(data):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO tarjetas (nombre, emisor, tipo, limite, saldo_actual, fecha_corte, fecha_pago_limite, notas)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, data)
-    conn.commit()
-    conn.close()
+st.title("💳 Gestión de Tarjetas")
 
-def obtener_tarjetas():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tarjetas")
-    tarjetas = cursor.fetchall()
-    conn.close()
-    return tarjetas
+# Formulario
+with st.form("form_tarjeta"):
+    nombre = st.text_input("Nombre de la tarjeta")
+    emisor = st.text_input("Emisor")
+    tipo = st.selectbox("Tipo", ["Crédito", "Débito"])
+    limite = st.number_input("Límite", min_value=0.0, step=100.0)
+    saldo = st.number_input("Saldo actual", min_value=0.0, step=100.0)
+    divisa = st.selectbox("Divisa", ["Córdobas", "Dólares"])
+    fecha_corte = st.date_input("Fecha de corte")
+    fecha_pago = st.date_input("Fecha de pago límite")
+    notas = st.text_area("Notas")
 
-def eliminar_tarjeta(id_tarjeta):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM tarjetas WHERE id = ?", (id_tarjeta,))
-    conn.commit()
-    conn.close()
+    submitted = st.form_submit_button("Guardar")
 
-def ui_tarjetas():
-    st.header("💳 Gestión de Tarjetas")
-    init_db()
+    if submitted:
+        saldo_cordobas = saldo if divisa == "Córdobas" else round(saldo * TIPO_CAMBIO, 2)
 
-    tabs = st.tabs(["➕ Agregar Tarjeta", "📋 Ver Tarjetas"])
+        tarjeta_data = {
+            "ID": len(st.session_state.tarjetas_db) + 1 if st.session_state.edit_index is None else st.session_state.edit_index + 1,
+            "Nombre": nombre,
+            "Emisor": emisor,
+            "Tipo": tipo,
+            "Límite": limite,
+            "Saldo": saldo,
+            "Divisa": divisa,
+            "Saldo_Córdobas": saldo_cordobas,
+            "Fecha Corte": fecha_corte,
+            "Fecha Pago": fecha_pago,
+            "Notas": notas
+        }
 
-    with tabs[0]:
-        with st.form("form_tarjeta"):
-            nombre = st.text_input("Nombre de la tarjeta", max_chars=50)
-            emisor = st.text_input("Emisor")
-            tipo = st.selectbox("Tipo", ["Crédito", "Débito"])
-            limite = st.number_input("Límite", min_value=0.0, step=100.0)
-            saldo_actual = st.number_input("Saldo actual", min_value=0.0, step=100.0)
-            fecha_corte = st.date_input("Fecha de corte", value=date.today())
-            fecha_pago_limite = st.date_input("Fecha de pago límite", value=date.today())
-            notas = st.text_area("Notas")
-
-            submitted = st.form_submit_button("Guardar")
-            if submitted:
-                if nombre.strip() == "":
-                    st.warning("El nombre es obligatorio.")
-                else:
-                    agregar_tarjeta((nombre, emisor, tipo, limite, saldo_actual, fecha_corte.isoformat(), fecha_pago_limite.isoformat(), notas))
-                    st.success("Tarjeta guardada correctamente.")
-
-    with tabs[1]:
-        tarjetas = obtener_tarjetas()
-        if tarjetas:
-            for t in tarjetas:
-                with st.expander(f"{t[1]} ({t[3]})"):
-                    st.write(f"**Emisor:** {t[2]}")
-                    st.write(f"**Límite:** {t[4]}")
-                    st.write(f"**Saldo actual:** {t[5]}")
-                    st.write(f"**Fecha de corte:** {t[6]}")
-                    st.write(f"**Fecha de pago límite:** {t[7]}")
-                    st.write(f"**Notas:** {t[8]}")
-                    if st.button(f"🗑️ Eliminar tarjeta {t[0]}", key=f"del_{t[0]}"):
-                        eliminar_tarjeta(t[0])
-                        st.success("Tarjeta eliminada.")
-                        st.experimental_rerun()
+        if st.session_state.edit_index is None:
+            st.session_state.tarjetas_db = pd.concat([
+                st.session_state.tarjetas_db,
+                pd.DataFrame([tarjeta_data])
+            ], ignore_index=True)
+            st.success("Tarjeta guardada exitosamente.")
         else:
-            st.info("No hay tarjetas registradas.")
+            st.session_state.tarjetas_db.iloc[st.session_state.edit_index] = tarjeta_data
+            st.success("Tarjeta modificada exitosamente.")
+            st.session_state.edit_index = None
+
+        # Limpieza de campos
+        st.experimental_rerun()
+
+# Mostrar tarjetas
+st.subheader("📋 Tarjetas registradas")
+if not st.session_state.tarjetas_db.empty:
+    st.dataframe(st.session_state.tarjetas_db.drop(columns=["ID"]), use_container_width=True)
+
+    # Selección para editar o eliminar
+    selected = st.selectbox("Selecciona una tarjeta para editar o eliminar", st.session_state.tarjetas_db["ID"])
+
+    col1, col2 = st.columns(2)
+    if col1.button("✏️ Editar"):
+        st.session_state.edit_index = st.session_state.tarjetas_db[st.session_state.tarjetas_db["ID"] == selected].index[0]
+        tarjeta = st.session_state.tarjetas_db.iloc[st.session_state.edit_index]
+        st.experimental_rerun()
+
+    if col2.button("🗑️ Eliminar"):
+        st.session_state.tarjetas_db = st.session_state.tarjetas_db[st.session_state.tarjetas_db["ID"] != selected].reset_index(drop=True)
+        st.success("Tarjeta eliminada.")
+        st.experimental_rerun()
+else:
+    st.info("No hay tarjetas registradas aún.")
