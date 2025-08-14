@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, Date
 from sqlalchemy.ext.declarative import declarative_base
 
-Base = declarative_base()
+from models.pagos_model import Base
 
 class Tarjeta(Base):
     __tablename__ = "tarjetas"
