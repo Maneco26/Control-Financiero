@@ -22,3 +22,17 @@ CREATE TABLE IF NOT EXISTS servicios (
     estado TEXT CHECK(estado IN ('Activo', 'Inactivo')) DEFAULT 'Activo',
     notas TEXT
 );
+
+-- Tabla de Pagos
+CREATE TABLE IF NOT EXISTS pagos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    tipo_pago TEXT CHECK(tipo_pago IN ('Servicio', 'Tarjeta')) NOT NULL,
+    servicio_id INTEGER,
+    tarjeta_id INTEGER,
+    modo_pago TEXT CHECK(modo_pago IN ('Completo', 'Parcial')),
+    monto REAL NOT NULL,
+    referencia TEXT,
+    FOREIGN KEY (servicio_id) REFERENCES servicios(id),
+    FOREIGN KEY (tarjeta_id) REFERENCES tarjetas(id)
+);
